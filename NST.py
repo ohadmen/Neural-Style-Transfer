@@ -1,14 +1,19 @@
 import cv2 as cv
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torchvision import transforms
 from torch.autograd import Variable
 from torch.optim import LBFGS
 import os
+
+from internal.normalize_inverse import NormalizeInverse
 from models.definitions.vgg19 import Vgg19
 
 IMAGENET_MEAN_255 = [123.675, 116.28, 103.53]
 IMAGENET_STD_NEUTRAL = [1, 1, 1]
+
+imgDenorm = NormalizeInverse(IMAGENET_MEAN_255,IMAGENET_STD_NEUTRAL)
 
 def load_image(img_path,target_shape="None"):
     '''
@@ -63,18 +68,25 @@ def save_and_maybe_display(optimizing_img, dump_path, config, img_id, num_of_ite
     If saving_freq == -1, only the final output image will be saved.
     Else, intermediate images can be saved too.
     '''
-    saving_freq = -1
-    out_img = optimizing_img.squeeze(axis=0).to('cpu').detach().numpy()
-    out_img = np.moveaxis(out_img, 0, 2)
+    saving_freq = 10
+    # out_img = optimizing_img.squeeze(axis=0).to('cpu').detach().numpy()
+    # out_img = np.moveaxis(out_img, 0, 2)
 
-    if img_id == num_of_iterations-1 :
-        img_format = config['img_format']
-        out_img_name = str(img_id).zfill(img_format[0]) + img_format[1] if saving_freq != -1 else generate_out_img_name(config)
-        dump_img = np.copy(out_img)
-        dump_img += np.array(IMAGENET_MEAN_255).reshape((1, 1, 3))
-        dump_img = np.clip(dump_img, 0, 255).astype('uint8')
-        cv.imwrite(os.path.join(dump_path, out_img_name), dump_img[:, :, ::-1])
-    
+    if img_id %saving_freq==0:
+        im_disp = imgDenorm(optimizing_img).cpu().detach().numpy().squeeze().transpose(
+            [1, 2, 0])
+        im_disp = (np.clip(im_disp, 0, 255) ).astype(np.uint8)
+        plt.imshow(im_disp)
+        plt.draw()
+        plt.pause(0.1)
+
+        # img_format = config['img_format']
+        # out_img_name = str(img_id).zfill(img_format[0]) + img_format[1] if saving_freq != -1 else generate_out_img_name(config)
+        # dump_img = np.copy(out_img)
+        # dump_img += np.array(IMAGENET_MEAN_255).reshape((1, 1, 3))
+        # dump_img = np.clip(dump_img, 0, 255).astype('uint8')
+        # cv.imwrite(os.path.join(dump_path, out_img_name), dump_img[:, :, ::-1])
+        #
 
 def prepare_model(device):
     '''
@@ -118,7 +130,7 @@ def build_loss(neural_net, optimizing_img, target_representations, content_featu
     style_loss = 0.0
     current_style_representation = [gram_matrix(x) for cnt, x in enumerate(current_set_of_feature_maps) if cnt in style_feature_maps_indices]
     for gram_gt, gram_hat in zip(target_style_representation, current_style_representation):
-        style_loss += torch.nn.MSELoss(reduction='sum')(gram_gt[0], gram_hat[0])
+        style_loss += torch.nn.MSELoss(reduction='sum')(gram_gt, gram_hat)
     style_loss /= len(target_style_representation)
     tv_loss = total_variation(optimizing_img)
     total_loss = config['content_weight'] * content_loss + config['style_weight'] * style_loss + config['tv_weight'] * tv_loss
@@ -182,7 +194,7 @@ def neural_style_transfer(config):
 
 PATH = ''
 CONTENT_IMAGE = 'c1.jpg'
-STYLE_IMAGE = 's1.jpg'
+STYLE_IMAGE = 's2.jpg'
 
 default_resource_dir = os.path.join(PATH, 'data')
 content_images_dir = os.path.join(default_resource_dir, 'content-images')
