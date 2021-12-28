@@ -3,14 +3,14 @@
   "style_img_fn":"data/style-images/s2.jpg",
    "imagenet_mean": [123.675, 116.28, 103.53],
    "imagenet_std": [1, 1, 1],
-  "n_iterations": 1000,
+  "n_iterations": 200,
   "display_every": 16,
   "image_height": 400,
   "loss_weights":
   {
-    "content":100000,
-    "style":30000,
-    "tv": 1
+    "content":3e-3,
+    "style":1,
+    "tv": 0.02
   }
 
 

@@ -2,6 +2,16 @@ import torch
 from torchvision import models
 from collections import namedtuple
 
+def gram_matrix(x):
+    '''
+    Generate gram matrices of the representations of content and style images.
+    '''
+    b, ch, h, w = x.size()
+    features = x.view(b, ch, w * h)
+    features_t = features.transpose(1, 2)
+    gram = features.bmm(features_t)
+    gram /= ch * h * w
+    return gram
 
 class Vgg19(torch.nn.Module):
     def __init__(self, requires_grad=False, show_progress=False, use_relu=True):
@@ -36,5 +46,5 @@ class Vgg19(torch.nn.Module):
         layer5_1 = x
 
         content_part = conv4_2
-        style_part = (layer1_1, layer2_1, layer3_1, layer4_1, layer5_1)
+        style_part = [gram_matrix(x) for x in (layer1_1, layer2_1, layer3_1, layer4_1, layer5_1)]
         return content_part, style_part
